@@ -1,9 +1,14 @@
-use std::io::Seek;
-use std::io::Read;
-use std::io::Write;
 use std::convert::TryInto;
+use std::io::Read;
+use std::io::Seek;
+use std::io::Write;
 
-fn gen_method(mut outfile: &std::fs::File, mut outfile_hdr: &std::fs::File, class: &clang::Entity, method: &clang::Entity) -> std::io::Result<()> {
+fn gen_method(
+    mut outfile: &std::fs::File,
+    mut outfile_hdr: &std::fs::File,
+    class: &clang::Entity,
+    method: &clang::Entity,
+) -> std::io::Result<()> {
     let mut outbuf = Vec::new();
     let mut method_name = method.get_name().unwrap();
 
@@ -16,9 +21,14 @@ fn gen_method(mut outfile: &std::fs::File, mut outfile_hdr: &std::fs::File, clas
     };
 
     // write sig to outbuf
-    write!(&mut outbuf, "{} vwrap_{}_{}({} *thiz", method.get_result_type().unwrap().get_display_name(),
+    write!(
+        &mut outbuf,
+        "{} vwrap_{}_{}({} *thiz",
+        method.get_result_type().unwrap().get_display_name(),
         class.get_type().unwrap().get_display_name(),
-        method_name, class.get_type().unwrap().get_display_name())?;
+        method_name,
+        class.get_type().unwrap().get_display_name()
+    )?;
     if let Some(arguments) = method.get_arguments() {
         for argument in arguments {
             write!(&mut outbuf, ", ")?;
@@ -31,7 +41,8 @@ fn gen_method(mut outfile: &std::fs::File, mut outfile_hdr: &std::fs::File, clas
             let filepath = loc_start.file.unwrap().get_path();
 
             let mut file = std::fs::File::open(filepath).unwrap();
-            file.seek(std::io::SeekFrom::Start(loc_start.offset.into())).unwrap();
+            file.seek(std::io::SeekFrom::Start(loc_start.offset.into()))
+                .unwrap();
             let mut buf = vec![0; (loc_end.offset - loc_start.offset).try_into().unwrap()];
             file.read_exact(&mut buf)?;
             outbuf.write_all(&buf)?;
@@ -54,8 +65,7 @@ fn gen_method(mut outfile: &std::fs::File, mut outfile_hdr: &std::fs::File, clas
 
     if let clang::EntityKind::Constructor = method.get_kind() {
         write!(&mut outfile, "new(thiz) ")?;
-    }
-    else {
+    } else {
         write!(&mut outfile, "thiz->")?;
     }
     write!(&mut outfile, "{}(", method.get_name().unwrap())?;
@@ -64,8 +74,7 @@ fn gen_method(mut outfile: &std::fs::File, mut outfile_hdr: &std::fs::File, clas
         for argument in arguments {
             if first {
                 first = false;
-            }
-            else {
+            } else {
                 write!(&mut outfile, ", ")?;
             }
 
@@ -79,14 +88,19 @@ fn gen_method(mut outfile: &std::fs::File, mut outfile_hdr: &std::fs::File, clas
     Ok(())
 }
 
-pub fn generate<F: Into<std::path::PathBuf>, S: AsRef<str>>(outpath_src: F, outpath_hdr: F, inpath: F, arguments: &[S]) -> std::io::Result<()> {
+pub fn generate<F: Into<std::path::PathBuf>, S: AsRef<str>>(
+    outpath_src: F,
+    outpath_hdr: F,
+    inpath: F,
+    arguments: &[S],
+) -> std::io::Result<()> {
     let clang = clang::Clang::new().unwrap();
     let index = clang::Index::new(&clang, false, false);
 
     let inpath2 = inpath.into();
     let outpath_hdr2 = outpath_hdr.into();
     let mut parser = index.parser(&inpath2);
-    let mut clang_args:Vec<std::string::String> = Vec::new();
+    let mut clang_args: Vec<std::string::String> = Vec::new();
 
     if let Some(clang) = clang_sys::support::Clang::find(None, &[]) {
         if let Some(paths) = clang.cpp_search_paths {
@@ -129,12 +143,12 @@ pub fn generate<F: Into<std::path::PathBuf>, S: AsRef<str>>(outpath_src: F, outp
             continue;
         }
 
-        let type_ =  class.get_type().unwrap();
+        let type_ = class.get_type().unwrap();
         classes.insert(type_.get_display_name(), class);
     }
 
     for class in classes.values() {
-        let type_ =  class.get_type().unwrap();
+        let type_ = class.get_type().unwrap();
         let mut base_classes = Vec::new();
         let mut changed = true;
 
@@ -165,7 +179,10 @@ pub fn generate<F: Into<std::path::PathBuf>, S: AsRef<str>>(outpath_src: F, outp
                         // these are the types we currently can't access properly using bindgen
                         // we generate wrappers for all inherited functions because we can't cast to the
                         // base type without generating conversion wrappers.
-                        if class == base_class && !method.is_virtual_method() && !method.is_inline_function() {
+                        if class == base_class
+                            && !method.is_virtual_method()
+                            && !method.is_inline_function()
+                        {
                             continue;
                         }
                         // by ignoring overriding methods we ensure we generate one wrapper only,
@@ -178,7 +195,7 @@ pub fn generate<F: Into<std::path::PathBuf>, S: AsRef<str>>(outpath_src: F, outp
                         if method.get_accessibility().unwrap() != clang::Accessibility::Public {
                             continue;
                         }
-                    },
+                    }
                     // generate wrappers for public constructors/destructors of the current class
                     clang::EntityKind::Destructor | clang::EntityKind::Constructor => {
                         if class != base_class {
@@ -192,8 +209,8 @@ pub fn generate<F: Into<std::path::PathBuf>, S: AsRef<str>>(outpath_src: F, outp
                         if method.get_accessibility().unwrap() != clang::Accessibility::Public {
                             continue;
                         }
-                    },
-                    _ => continue
+                    }
+                    _ => continue,
                 }
 
                 gen_method(&outfile, &outfile_hdr, &class, &method)?;

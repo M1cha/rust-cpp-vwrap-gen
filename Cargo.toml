@@ -3,7 +3,10 @@ name = "cpp-vwrap-gen"
 version = "0.1.0"
 authors = ["Michael Zimmermann <sigmaepsilon92@gmail.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "generate wrappers around c++ virtual classes and constructors/destructors."
+repository = "https://github.com/M1cha/rust-cpp-vwrap-gen"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
+clang-sys = "0.*"
+clang = { version = "0.23", features = ["runtime", "clang_8_0"] }
